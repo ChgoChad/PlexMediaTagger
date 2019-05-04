@@ -16,8 +16,8 @@ the Subler team (https://bitbucket.org/galad87/subler https://bitbucket.org/gala
 their excellent CLI tool to used to write the information to the media files
 """
 
-__author__ = "ccjensen/Chris"
-__version__ = "0.7"
+__author__ = "ccjensen/Chris, PORT by CCarpenter"
+__version__ = "0.7.1"
 
 import sys
 import os
@@ -44,7 +44,7 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
     
     root = logging.getLogger()
-    root.setLevel(logging.WARNING)
+    root.setLevel(logging.DEBUG)
     root.addHandler(ColorizingStreamHandler())
     
     parser = OptionParser(usage="\
@@ -95,7 +95,7 @@ Filepaths to media items in PMS need to be the same as on machine that is runnin
                         help="open a Finder window at the containing folder of the file just processed (Mac OS X only)")
 
     parser.add_option(  "--add-to-itunes", action="store_true", dest="add_to_itunes",
-                        help="adds the item to iTunes if not already present")
+                        help="adds the item to iTunes if not already present - NOT IMPLEMENTED IN WINDOWS PORT")
                         
     parser.add_option(  "-i", "--ip", action="store", dest="ip", type="string",
                         help="specify an alternate IP address that hosts a PMS to connect to (default is localhost)")
@@ -184,7 +184,8 @@ Filepaths to media items in PMS need to be the same as on machine that is runnin
         logging.critical( "FORCE MODE ENABLED. THIS WILL BYPASS ANY 'HAS THIS BEEN DONE BEFORE' CHECKS" )
     
     logging.error( generate_centered_padded_string(" Plex Media Tagger Started ") )
-    
+    logging.error('Version: %s, FFMPEG Fork', __version__)
+
     if opts.gather_statistics:
         statistics = LibraryStatistics()
     summary = Summary()

@@ -40,9 +40,9 @@ def generate_centered_padded_string(text, character="="):
 #end def generate_centered_padded_string
 
 def get_terminal_size():
+    import fcntl, termios, struct, os
     def ioctl_GWINSZ(fd):
         try:
-            import fcntl, termios, struct, os
             cr = struct.unpack('hh', fcntl.ioctl(fd, termios.TIOCGWINSZ,
         '1234'))
         except:
