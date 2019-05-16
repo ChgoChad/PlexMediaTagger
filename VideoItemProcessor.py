@@ -11,13 +11,16 @@ import sys
 import os
 import glob
 import subprocess
+import json
 from Summary import *
 from LibraryStatistics import *
 from DataTokens import *
 from unicodedata import normalize
 
-FFMPEG_CLI = os.path.join(sys.path[0], "ffmpeg.exe")
-FFPROBE_CLI = os.path.join(sys.path[0], "ffprobe.exe")
+
+FFMPEG_CLI = '\\ffmpeg\\ffmpeg.exe'
+FFPROBE_CLI = '\\ffmpeg\\ffprobe.exe'
+
 
 class VideoItemProcessor:
     """docstring for VideoItemProcessor"""
@@ -89,25 +92,35 @@ class VideoItemProcessor:
     def getFileCommentTagContents(self, part_item):
         """docstring for getFileCommentTagContents"""
         # use latest subler as it can read metadata
+        cwd = os.getcwd()
+
+        if not os.path.exists(cwd + FFPROBE_CLI):
+            raise OSError('File Not Found: %s' % cwd + FFPROBE_CLI)
 
         #Create the command line string
-        get_tags_cmd = ['%s' % FFMPEG_CLI]
-        get_tags_cmd.append("-source")
+        get_tags_cmd = ['%s' % cwd + FFPROBE_CLI]
+        get_tags_cmd.append('-hide_banner -loglevel quiet')
+        get_tags_cmd.append('-i')
         get_tags_cmd.append('%s' % part_item.modified_file_path())
-        get_tags_cmd.append('-listmetadata')
+        get_tags_cmd.append('-print_format json')
+        get_tags_cmd.append('-show_format -show_error')
         
         #check if file has already been tagged
-        result = subprocess.Popen(get_tags_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0]
-        
-        #error checking
+        logging.debug('Calling get_tags_cmd: %s' % ' '.join(get_tags_cmd))
+        result_json = subprocess.Popen(' '.join(get_tags_cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0]
+
+        result = json.loads(result_json)
+
+        #error checking 
         if "Error" in result:
             logging.critical("Failed to determine file tagged status")
             return ""
         #end if "Error" in result:
         
-        for line in result.split("\n"):
-            if DataTokens.subler_comment_token in line:
-                return line.replace(DataTokens.subler_comment_token, '')
+        # for line in result.split("\n"):
+        #     if DataTokens.subler_comment_token in line:
+        #         return line.replace(DataTokens.subler_comment_token, '')
+        result
 
         logging.info("File untagged")
         return ""
@@ -118,18 +131,48 @@ class VideoItemProcessor:
         os.setpgrp()
     
     def execute_command(self, actionable_file_path, command, action_description):
-        logging.debug("'%s' arguments: %s" % (action_description, command))
+        logging.debug("'%s' arguments: %s" % (action_description, ' '.join(command)))
         if self.opts.dryrun:
             result = "dryrun"
         else:
             #check if file exists
             if os.path.isfile(actionable_file_path):
                 #run command
-                result = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn = self.preexec).communicate()[0]
+                startupinfo = None
+                creationflags= None
+                show = True
+                if os.name == 'nt':
+                    startupinfo = subprocess.STARTUPINFO()
+                    startupinfo.dwFlags = subprocess.STARTF_USESHOWWINDOW
+                    startupinfo.wShowWindow = 1 if show else subprocess.SW_HIDE
+                    creationflags = subprocess.CREATE_NEW_CONSOLE if show else 0
+                
+                try:
+                    proc = subprocess.Popen(' '.join(command), 
+                                            stdout = subprocess.PIPE, 
+                                            stderr = subprocess.PIPE,
+                                            shell = True,
+                                            universal_newlines = True,
+                                            startupinfo = startupinfo,
+                                            creationflags = creationflags)
+                    
+                    stdout, stderr = proc.communicate()
+                    stdout = stdout.decode('utf-8')
+                    stderr = stderr.decode('utf-8')
+                except OSError, e:
+                    raise Exception('Error: %s' % e)
+                #end Try
+
+                if stderr:
+                    raise Exception('Error: %s' % stderr)
+                else:
+                    result = stdout
+                #end If sterr
+                  
             else:
                 result = "Error: Unable to find file."
             #end if isfile
-        
+
         #end if dryrun
         if "Error" in result:
             logging.critical("Failed %s for '%s': %s" % (action_description, actionable_file_path, result.strip()) )
@@ -143,27 +186,54 @@ class VideoItemProcessor:
     
     def remove_tags(self, part_item):
         
+        cwd = os.getcwd()
         filepath = part_item.modified_file_path()
         
         #removal of artwork doesn't seem to work
-        all_tags = ["{Artwork:}", "{HD Video:}", "{Gapless:}", "{Content Rating:}", "{Media Kind:}", "{Name:}", "{Artist:}", "{Album Artist:}", "{Album:}", "{Grouping:}", "{Composer:}", "{Comments:}", "{Genre:}", "{Release Date:}", "{Track #:}", "{Disk #:}", "{TV Show:}", "{TV Episode #:}", "{TV Network:}", "{TV Episode ID:}", "{TV Season:}", "{Description:}", "{Long Description:}", "{Rating:}", "{Rating Annotation:}", "{Studio:}", "{Cast:}", "{Director:}", "{Codirector:}", "{Producers:}", "{Screenwriters:}", "{Lyrics:}", "{Copyright:}", "{Encoding Tool:}", "{Encoded By:}", "{contentID:}"]#these are currently not supported in subler cli tool, "{XID:}", "{iTunes Account:}", "{Sort Name:}", "{Sort Artist:}", "{Sort Album Artist:}", "{Sort Album:}", "{Sort Composer:}", "{Sort TV Show:}"]
+        all_tags = ["{Artwork=}", 
+                    "{HD Video=}", 
+                    "{Media Kind=}", 
+                    "{title=}", 
+                    "{author-}", 
+                    "{album_artist=}", 
+                    "{album-}", 
+                    "{grouping=}", 
+                    "{composer=}", 
+                    "{comment=}", 
+                    "{genre=}", 
+                    "{year:=}", 
+                    "{track=}", 
+                    "{show=}", 
+                    "{network=}", 
+                    "{episode_id=}",                     
+                    "{description=}", 
+                    "{synopsis=}",                      
+                    "{lyrics=}", 
+                    "{copyright=}"]
+        #these are currently not supported in subler cli tool, "{XID:}", "{iTunes Account:}", "{Sort Name:}", "{Sort Artist:}", 
+        # "{Sort Album Artist:}", "{Sort Album:}", "{Sort Composer:}", "{Sort TV Show:}"]
+        # "{Gapless:}",  "{Content Rating:}",  "{Disk #:}", "{TV Episode #:}", "{TV Season:}", "{Rating:}", "{Rating Annotation:}", 
+        # "{Studio:}",  "{Cast:}",  "{Director:}", "{Codirector:}",  "{Producers:}",  "{Screenwriters:}",  "{Encoding Tool:}", 
+        #  "{Encoded By:}","{contentID:}"
         logging.warning("removing tags...")
         
         #Create the command line command
-        tag_removal_cmd = ['%s' % FFMPEG_CLI]
+        tag_removal_cmd = ['%s' % cwd + FFMPEG_CLI]
+        tag_removal_cmd.append('-hide_banner -loglevel quiet')
+        tag_removal_cmd.append('-i')
+        tag_removal_cmd.append(filepath)
         
         if self.opts.optimize:
             action_description = "Tags removed and optimized"
-            tag_removal_cmd.append("-O")
+            tag_removal_cmd.append("-movflags faststart")
         else:
             action_description = "Tags removed"
         #end if optimize
 
         tag_removal_cmd.append("-t")
         tag_removal_cmd.append("".join(all_tags))
-        tag_removal_cmd.append("-i")
-        tag_removal_cmd.append(filepath)
-        
+        tag_removal_cmd.append("outputfile.mp4")
+
         success = self.execute_command(filepath, tag_removal_cmd, action_description)
         if success:
             Summary().metadata_removal_succeeded()
@@ -174,19 +244,22 @@ class VideoItemProcessor:
     
     def tag(self, part_item):
         # SublerCLI = os.path.join(sys.path[0], "SublerCLI-v010")
+        cwd = os.getcwd()
         filepath = part_item.modified_file_path()
         directory = os.path.dirname(filepath)
         filename = os.path.basename(filepath)
         filename_without_extension = os.path.splitext(filename)[0]
-        
+        outputfile = os.path.join(directory, filename + '-temp' + os.path.splitext(filename)[1])
+
         logging.warning("tagging...")
         
         #Create the command line command
-        tag_cmd = ['%s' % FFMPEG_CLI]
+        tag_cmd = ['%s' % cwd + FFMPEG_CLI]
+        tag_cmd.append('-hide_banner -loglevel quiet')
 
         if self.opts.optimize:
             action_description = "Tags added and optimized"
-            tag_cmd.append("-O")
+            tag_cmd.append("-movflags faststart")
         else:
             action_description = "Tags added"
         #end if optimize
@@ -209,6 +282,7 @@ class VideoItemProcessor:
         tag_cmd.append(part_item.tag_string()) #also downloads the artwork
         tag_cmd.append("-i")
         tag_cmd.append(filepath)
+        tag_cmd.append(outputfile)
         
         success = self.execute_command(filepath, tag_cmd, action_description)
         if success:
@@ -220,18 +294,26 @@ class VideoItemProcessor:
     
     def optimize(self, part_item):
         # SublerCLI = os.path.join(sys.path[0], "SublerCLI-v010")
+        cwd = os.getcwd()
         filepath = part_item.modified_file_path()
+        directory = os.path.dirname(filepath)
+        filename = os.path.basename(filepath)
+        filename_without_extension = os.path.splitext(filename)[0]
+        outputfile = os.path.join(directory, filename_without_extension + '-temp' + os.path.splitext(filename)[1])
         
-        logging.warning("optimizing file...")
-        
+        logging.warning("Optimizing file...")
         action_description = "Tags optimized"
-        #Create the command line command
-        optimize_cmd = ['%s' % FFMPEG_CLI]
-        optimize_cmd.append("-O")
-        optimize_cmd.append("-i")
-        optimize_cmd.append(filepath)
         
+        #Create the command line command
+        optimize_cmd = ['%s' % cwd + FFMPEG_CLI]
+        optimize_cmd.append('-hide_banner -loglevel quiet')
+        optimize_cmd.append('-i')
+        optimize_cmd.append(filepath)
+        optimize_cmd.append('-movflags faststart')
+        optimize_cmd.append('-y ' + outputfile)
+
         success = self.execute_command(filepath, optimize_cmd, action_description)
+
         if success:
             Summary().metadata_optimized_succeeded()
         else:
@@ -248,7 +330,7 @@ class VideoItemProcessor:
         #=== subtitles ===
         #build up language_code dict
         if self.opts.export_subtitles:
-            logging.warning("attempting to export subtitles...")
+            logging.warning("Attempting to export Subtitles...")
             subtitle_stream_type = "3"
             all_non_embedded_subtitles = []
             for stream_item in part_item.stream_items:
@@ -258,9 +340,9 @@ class VideoItemProcessor:
             #end for
             number_of_non_embedded_subtitles = len(all_non_embedded_subtitles)
             if number_of_non_embedded_subtitles == 0:
-                logging.warning("no subtitles found")
+                logging.warning("No Subtitles found")
             else:
-                logging.warning("found %d subtitle(s)" % number_of_non_embedded_subtitles)
+                logging.warning("Found %d Subtitle(s)" % number_of_non_embedded_subtitles)
                 
                 categorized_subtitles = {}
                 for subtitle in all_non_embedded_subtitles:
@@ -303,12 +385,12 @@ class VideoItemProcessor:
                         #end success
                     #end for subtitles
                 #end for categorized_subtitles
-                logging.warning( "exported %d subtitle(s), skipped %d" % ( exported_subtitles, (number_of_non_embedded_subtitles-exported_subtitles) ) )
+                logging.warning( "Exported %d Subtitle(s), Skipped %d" % ( exported_subtitles, (number_of_non_embedded_subtitles-exported_subtitles) ) )
             #end if len(all_non_embedded_subtitles) == 0:
         #end if subtitles
         
         if self.opts.export_artwork:
-            logging.error("artwork export not yet implemented...")
+            logging.error("Artwork Export not yet implemented...")
             #logging.warning("attempting to export artwork...")
         
     #end def export_resources
@@ -320,7 +402,7 @@ class VideoItemProcessor:
             os.chdir(directory)
         except OSError, errorstr:
             logging.critical("Failed 'resource export': %s" % (errorstr) )
-            logging.critical('Do you have any "yellow exclamation marks" in the Plex Media Manager?')
+            logging.critical('Do you have any "Yellow Exclamation Marks" in the Plex Media Manager?')
             return False
         #end try
         glob_str = "%s*" % (filename_without_extension)
@@ -391,43 +473,53 @@ class VideoItemProcessor:
             skipped_all = False
             LibraryStatistics().add_item(self.video_item)
         #end if gather_statistics
+        
         for index, media_item in enumerate(self.media_items):
-            logging.warning( "processing %d/%d media_items" % ( index+1, len(self.media_items)) )
+            logging.warning( "Processing %d/%d media_items" % ( index+1, len(self.media_items)) )
             part_items = media_item.part_items
+            
             for index2, part_item in enumerate(part_items):
                 no_action = True
-                logging.warning( " processing %d/%d part_items" % ( index2+1, len(part_items)) )
+                logging.warning( " Processing %d/%d part_items" % ( index2+1, len(part_items)) )
                 Summary().increment_parts_processed()
+                
                 if self.opts.removetags and self.canTag(part_item):
                     skipped_all = no_action = False
                     self.remove_tags(part_item)
                 #end if removetags
+                
                 if self.opts.tag and self.canTag(part_item) and self.shouldTag(part_item):
                     skipped_all = no_action = False
                     self.tag(part_item)
                 #end if tag   
+                
                 if self.opts.optimize and not self.opts.tag and not self.opts.removetags and self.canTag(part_item):
                     #optimize is done together with tagging or removing, so only needs to be done here if it's the exclusive action
                     skipped_all = no_action = False
                     self.optimize(part_item)
                 #end if optimize
+                
                 if self.opts.export_resources:
                     skipped_all = no_action = False
                     self.export_resources(part_item)
                 #end if export_resouces
+                
                 if self.opts.add_to_itunes:
                     skipped_all = no_action = False
                     self.add_to_itunes(part_item)
                 #end if add_to_itunes
+                
                 if self.opts.open_file_location and not no_action:
-                    logging.warning("opening '%s'..." % part_item.modified_file_path())
+                    logging.warning("Opening '%s'..." % part_item.modified_file_path())
                     command = ['open', "-R", part_item.modified_file_path()]
                     subprocess.call(command)
                 #end if self.opts.open_file_location
+
             #end for part_items
         #end for media_items
+        
         if skipped_all:
-            logging.warning("skipping: found no suitable files for specified tasks")
+            logging.warning("Skipping: Found no suitable files for specified tasks.")
         #end if skipped_all
     #end def process_item
 #end MediaPartProcessor

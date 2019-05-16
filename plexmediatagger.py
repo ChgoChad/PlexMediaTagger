@@ -43,9 +43,14 @@ section_processor = None
 def main():
     signal.signal(signal.SIGINT, signal_handler)
     
+    # define a Handler which writes INFO messages or higher to the sys.stderr
+    console = logging.StreamHandler()
+    console.setLevel(logging.CRITICAL)
+    
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
     root.addHandler(ColorizingStreamHandler())
+    root.addHandler(console)
     
     parser = OptionParser(usage="\
 %prog [options]\n\
@@ -184,7 +189,7 @@ Filepaths to media items in PMS need to be the same as on machine that is runnin
         logging.critical( "FORCE MODE ENABLED. THIS WILL BYPASS ANY 'HAS THIS BEEN DONE BEFORE' CHECKS" )
     
     logging.error( generate_centered_padded_string(" Plex Media Tagger Started ") )
-    logging.error('Version: %s, FFMPEG Fork', __version__)
+    logging.error('[Version: %s, FFMPEG Fork]', __version__)
 
     if opts.gather_statistics:
         statistics = LibraryStatistics()
@@ -212,11 +217,11 @@ Filepaths to media items in PMS need to be the same as on machine that is runnin
         if len(section_elements) == 0:
             logging.error( "No sections found" )
         else:    
-            logging.warning( "empty input equals all" )
+            logging.warning( "Empty input will process ALL Sextions" )
     
             #ask user what sections should be processed
             section_element_choice = raw_input("Section to process $")
-            if section_element_choice != '':
+            if section_element_choice != '' or section_element_choice != '\r':
                 try:
                     section_element_choice = int(section_element_choice)
                 except ValueError, e:
@@ -228,7 +233,7 @@ Filepaths to media items in PMS need to be the same as on machine that is runnin
         #end if len(section_elements)
     #end if opts.interactive
     
-    if section_element_choice == '': #all
+    if section_element_choice == '' or section_element_choice == '\r': #all
         section_elements_to_process = section_elements
     else:
         section_elements_to_process = [section_elements[section_element_choice]]

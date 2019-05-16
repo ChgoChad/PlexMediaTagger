@@ -95,7 +95,7 @@ class SectionProcessor:
         logging.info( "Type part of the item(s) name or leave empty for full list %s's content" % container_title )
         input = raw_input("Item name $")
         
-        if input == '':
+        if input == '' or input == '\r':
             logging.info( "List of items in %s" % container_title )
             filtered_list_of_items = list_of_items
         else:

@@ -59,7 +59,13 @@ class MovieItem(VideoItem):
         if platform.system() == 'Darwin':
             illegal_characters.append("/")
             illegal_characters.append(":")
-            
+        elif platform.system() == 'Windows':
+            illegal_characters.append(':')
+            illegal_characters.append('"')
+            illegal_characters.append('*')  # this is a wildcard in Windows
+            illegal_characters.append('|')  # this is the pipe or redirect output symbol on Windows
+            illegal_characters.append('?')  # this is a wildcard in Windows
+
         for illegal_character in illegal_characters:
             name = name.replace(illegal_character, "_")
         return name
@@ -69,7 +75,6 @@ class MovieItem(VideoItem):
         if len(self.thumb) == 0:
             logging.warning("Could not find movie artwork...")
             return
-        
         
         request_handler = PmsRequestHandler()
         partial_image_url = self.thumb
@@ -94,7 +99,7 @@ class MovieItem(VideoItem):
 
         tag_string += self.new_tag_string_entry("Media Kind", "Movie")
         tag_string += self.new_tag_string_entry("Name", self.title)
-        tag_string += self.new_tag_string_entry("Artist", self.directors)
+        tag_string += self.new_tag_string_entry("Director", self.directors)
         tag_string += self.new_tag_string_entry("Genre", self.genre) #single genre
         tag_string += self.new_tag_string_entry("Release Date", self.originally_available_at)
         tag_string += self.new_tag_string_entry("Description", self.tagline if len(self.tagline) > 0 else self.summary)
