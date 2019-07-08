@@ -11,6 +11,7 @@
 import logging
 import os
 from Console import *
+import ctypes, re
 
 class ColorizingStreamHandler(logging.StreamHandler):
     # color names to indices

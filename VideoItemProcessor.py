@@ -150,15 +150,16 @@ class VideoItemProcessor:
                 try:
                     proc = subprocess.Popen(' '.join(command), 
                                             stdout = subprocess.PIPE, 
-                                            stderr = subprocess.PIPE,
+                                            stderr = subprocess.STDOUT,  #was PIPE
                                             shell = True,
                                             universal_newlines = True,
                                             startupinfo = startupinfo,
                                             creationflags = creationflags)
-                    
+                
                     stdout, stderr = proc.communicate()
                     stdout = stdout.decode('utf-8')
-                    stderr = stderr.decode('utf-8')
+                    #stderr = stderr.decode('utf-8')
+
                 except OSError, e:
                     raise Exception('Error: %s' % e)
                 #end Try
@@ -255,11 +256,11 @@ class VideoItemProcessor:
         
         #Create the command line command
         tag_cmd = ['%s' % cwd + FFMPEG_CLI]
-        tag_cmd.append('-hide_banner -loglevel quiet')
+        tag_cmd.append('-hide_banner -loglevel info')
 
         if self.opts.optimize:
             action_description = "Tags added and optimized"
-            tag_cmd.append("-movflags faststart")
+            tag_cmd.append("-movflags +faststart")
         else:
             action_description = "Tags added"
         #end if optimize
@@ -306,11 +307,10 @@ class VideoItemProcessor:
         
         #Create the command line command
         optimize_cmd = ['%s' % cwd + FFMPEG_CLI]
-        optimize_cmd.append('-hide_banner -loglevel quiet')
-        optimize_cmd.append('-i')
-        optimize_cmd.append(filepath)
-        optimize_cmd.append('-movflags faststart')
-        optimize_cmd.append('-y ' + outputfile)
+        optimize_cmd.append('-hide_banner -loglevel info')
+        optimize_cmd.append('-i "' + filepath + '"')
+        optimize_cmd.append('-movflags +faststart')
+        optimize_cmd.append('-y "' + outputfile + '"')
 
         success = self.execute_command(filepath, optimize_cmd, action_description)
 
@@ -320,6 +320,44 @@ class VideoItemProcessor:
             Summary().metadata_optimized_failed()
         #end success
     #end optimize
+
+    def convert(self, part_item):
+        cwd = os.getcwd()
+        filepath = part_item.modified_file_path()
+        directory = os.path.dirname(filepath)
+        filename = os.path.basename(filepath)
+        filename_without_extension = os.path.splitext(filename)[0]
+        outputfile = os.path.join(directory, filename_without_extension + ".mp4") #os.path.splitext(filename)[1])
+        
+        logging.warning("Converting file to MP4...")
+        action_description = "File Convert to MP4"
+        
+        #Create the command line command
+        # ffmpeg -i input_file -c:v libx264 -pix_fmt yuv420p -preset veryslow -crf 18 -c:a aac -movflags +faststart output_file
+        convert_cmd = ['%s' % cwd + FFMPEG_CLI]
+        convert_cmd.append('-hide_banner -loglevel info')
+        convert_cmd.append('-i "' + filepath + '"')
+        #convert_cmd.append('-threads auto')
+        convert_cmd.append('-c:v libx264')
+        convert_cmd.append('-pix_fmt yuv420p')
+        convert_cmd.append('-preset slow')
+        convert_cmd.append('-crf 23')
+        convert_cmd.append('-c:a aac')
+        convert_cmd.append('-movflags +faststart')
+        convert_cmd.append('-y "' + outputfile + '"')
+
+        success = self.execute_command(filepath, convert_cmd, action_description)
+
+        if success:
+            Summary().metadata_convert_succeeded()
+            # Update the part_item to use the converted file
+            part_item.file_path = outputfile
+            return part_item
+        else:
+            Summary().metadata_convert_failed()
+            return part_item
+        #end success
+    #end convert
     
     def export_resources(self, part_item):
         part_item_file_path = part_item.modified_file_path()
@@ -392,7 +430,6 @@ class VideoItemProcessor:
         if self.opts.export_artwork:
             logging.error("Artwork Export not yet implemented...")
             #logging.warning("attempting to export artwork...")
-        
     #end def export_resources
     
     def get_all_sidecar_subtitles(self, directory, filename_without_extension, language_code=None, codec=None):
@@ -415,8 +452,6 @@ class VideoItemProcessor:
         return subs
     
     def add_to_itunes(self, part_item):
-        raise NotImplementedError
-
     #     if self.video_item.__class__.__name__ == "MovieItem":
     #         itunes_playlist = "Movies"
     #     else:
@@ -464,6 +499,7 @@ class VideoItemProcessor:
     #         Summary().add_to_itunes_failed()
     #         logging.critical("Failed 'add to iTunes' for '%s'. Incorrect path or not a compatible file type?" % (actionable_file_path) )
     #     #end if result.startswith
+       raise NotImplementedError
     # #end def add_to_itunes
     
     def process(self):
@@ -475,14 +511,24 @@ class VideoItemProcessor:
         #end if gather_statistics
         
         for index, media_item in enumerate(self.media_items):
-            logging.warning( "Processing %d/%d media_items" % ( index+1, len(self.media_items)) )
+            logging.warning("Processing %d/%d media_items" % ( index + 1, len(self.media_items)) )
             part_items = media_item.part_items
             
             for index2, part_item in enumerate(part_items):
                 no_action = True
-                logging.warning( " Processing %d/%d part_items" % ( index2+1, len(part_items)) )
+                logging.warning(" Processing %d/%d part_items" % ( index2 + 1, len(part_items)) )
                 Summary().increment_parts_processed()
-                
+
+                if self.opts.convert and not self.canTag(part_item):
+                    #In order to convert, CanTag should be not true
+                    skipped_all = no_action = False
+                    converted_file = self.convert(part_item)
+                    #Convert function reutrns the file name of the converted file, else the file name of the original file
+                    #If convert was a success, We need to re-assign the part_item to be the conveted file so other functions
+                    #do work off of the converted file.
+                    part_item = converted_file
+                #end if convert
+
                 if self.opts.removetags and self.canTag(part_item):
                     skipped_all = no_action = False
                     self.remove_tags(part_item)

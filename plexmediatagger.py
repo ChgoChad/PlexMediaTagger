@@ -53,7 +53,7 @@ def main():
     root.addHandler(console)
     
     parser = OptionParser(usage="\
-%prog [options]\n\
+%prog [options]\n\n\
 Example 1: %prog --tag\n\
 Example 2: %prog --tag -b --username='foo@bar.com' --interactive-password\n\
 \ttag everything in the library, and authenticate to Plex Home as user foo@bar.com with password being prompted for (password can also be supplied using the --password option)\n\
@@ -128,13 +128,16 @@ Filepaths to media items in PMS need to be the same as on machine that is runnin
     parser.add_option(  "-q", "--quiet", action="store_true", dest="quiet",
                         help="ninja-like processing (can only be used when in batch mode)")
     parser.add_option(  "-d", "--dry-run", action="store_true", dest="dryrun",
-                        help="pretend to do the job, but never actually change or export anything. Pretends that all tasks succeed. Useful for testing purposes")
+                        help="pretend to do the job, but never actually change or export anything. Pretends that all tasks succeed. Useful for testing purposes"),
+   
+    parser.add_option(  "-c", "--convert", action="store_true", dest="convert",
+                        help="If file is not a taggable file, then it will be converted to mp4 if this flag is set")
 
     parser.set_defaults( tag=False, tag_update=False, tag_prefer_season_artwork=False, remove_tags=False, 
                         optimize=False, chapter_previews=False, embed_subtitles=False,
                         export_resources=False, export_subtitles=False, export_artwork=False, 
                         gather_statistics=False, open_file_location=False, add_to_itunes=False,
-                        force_tagging=False, dryrun=False,
+                        force_tagging=False, dryrun=False, convert=False,
                         interactive=True, quiet=False, batch_mediatype="any", batch_breadcrumb="",
                         ip="localhost", port=32400, username="", password="", interactive_password=False,
                         path_modifications=[])
@@ -147,7 +150,7 @@ Filepaths to media items in PMS need to be the same as on machine that is runnin
     if opts.export_subtitles or opts.export_artwork:
         opts.export_resources = True
     
-    if not opts.tag and not opts.removetags and not opts.optimize and not opts.export_resources and not opts.add_to_itunes and not opts.gather_statistics:
+    if not opts.tag and not opts.removetags and not opts.optimize and not opts.export_resources and not opts.add_to_itunes and not opts.gather_statistics and not opts.convert:
         parser.error("No task to perform. Our work here is done...")
     
     if opts.tag_prefer_season_artwork and not opts.tag:
@@ -226,7 +229,7 @@ Filepaths to media items in PMS need to be the same as on machine that is runnin
                     section_element_choice = int(section_element_choice)
                 except ValueError, e:
                     logging.debug(e)
-                    logging.critical( "'%s' is not a valid section number" % input )
+                    logging.critical("'%s' is not a valid section number" % input )
                     sys.exit(1)
                 #end try
             #end if section_element_choice
