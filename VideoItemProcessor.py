@@ -143,38 +143,6 @@ class VideoItemProcessor:
                 #run command
                 #result = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn = self.preexec).communicate()[0]
 
-                # startupinfo = None
-                # creationflags= None
-                # show = False
-                # if os.name == 'nt':
-                #     startupinfo = subprocess.STARTUPINFO()
-                #     startupinfo.dwFlags = subprocess.STARTF_USESHOWWINDOW
-                #     startupinfo.wShowWindow = 1 if show else subprocess.SW_HIDE
-                #     creationflags = subprocess.CREATE_NEW_CONSOLE if show else 0
-                
-                # try:
-                #     proc = subprocess.Popen(' '.join(command), 
-                #                             stdout = subprocess.PIPE, 
-                #                             stderr = subprocess.PIPE,  #was PIPE
-                #                             shell = False,
-                #                             universal_newlines = True,
-                #                             startupinfo = startupinfo,
-                #                             creationflags = creationflags).communicate()[0]
-                
-                #     #stdout, stderr = proc.communicate()
-                #     stdout = proc.decode('utf-8')  #stdout.decode('utf-8')
-                #     stderr = proc.decode('utf-8') #stderr.decode('utf-8')
-
-                # except OSError, e:
-                #     raise Exception('Error: %s' % e)
-                # #end Try
-
-                # if stderr:
-                #     raise Exception('Error: %s' % stderr)
-                # else:
-                #     result = stdout
-                # #end If sterr
-               
                 conv = Converter(FFMPEG_CLI, FFPROBE_CLI).convert(actionable_file_path, outputfile, command, timeout=None)
 
                 for timecode in conv:
@@ -183,7 +151,6 @@ class VideoItemProcessor:
                 #logging.DEBUG("%s created" % outputfile)
                 result = 'Done'
 
-        
             else:
                 result = "Error: Unable to find file."
             #end if isfile
@@ -374,6 +341,7 @@ class VideoItemProcessor:
             Summary().metadata_convert_succeeded()
             # Update the part_item to use the converted file
             part_item.file_path = outputfile
+            part_item.file_type = ".mp4"
             return part_item
         else:
             Summary().metadata_convert_failed()
