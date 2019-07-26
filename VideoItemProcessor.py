@@ -6,20 +6,23 @@
 #license:Creative Commons GNU GPL v2
 # (http://creativecommons.org/licenses/GPL/2.0/)
 
-import logging
-import sys
-import os
 import glob
-import subprocess
 import json
-from Summary import *
-from LibraryStatistics import *
-from DataTokens import *
+import logging
+import os
+import subprocess
+import sys
 from unicodedata import normalize
+import ffmpeg
+from Converter import Converter
+from DataTokens import *
+from LibraryStatistics import *
+from Summary import *
 
-
-FFMPEG_CLI = '\\ffmpeg\\ffmpeg.exe'
-FFPROBE_CLI = '\\ffmpeg\\ffprobe.exe'
+#FFMPEG_CLI = '\\ffmpeg\\ffmpeg.exe'
+#FFPROBE_CLI = '\\ffmpeg\\ffprobe.exe'
+FFMPEG_CLI = 'C:\\Users\\Chad\\Documents\\GitHub\\PlexMediaTagger\\ffmpeg\\ffmpeg.exe'
+FFPROBE_CLI = 'C:\\Users\\Chad\\Documents\\GitHub\\PlexMediaTagger\\ffmpeg\\ffprobe.exe'
 
 
 class VideoItemProcessor:
@@ -130,7 +133,7 @@ class VideoItemProcessor:
     def preexec(self): # Don't forward signals.
         os.setpgrp()
     
-    def execute_command(self, actionable_file_path, command, action_description):
+    def execute_command(self, actionable_file_path, command, action_description, outputfile=''):
         logging.debug("'%s' arguments: %s" % (action_description, ' '.join(command)))
         if self.opts.dryrun:
             result = "dryrun"
@@ -138,38 +141,49 @@ class VideoItemProcessor:
             #check if file exists
             if os.path.isfile(actionable_file_path):
                 #run command
-                startupinfo = None
-                creationflags= None
-                show = True
-                if os.name == 'nt':
-                    startupinfo = subprocess.STARTUPINFO()
-                    startupinfo.dwFlags = subprocess.STARTF_USESHOWWINDOW
-                    startupinfo.wShowWindow = 1 if show else subprocess.SW_HIDE
-                    creationflags = subprocess.CREATE_NEW_CONSOLE if show else 0
-                
-                try:
-                    proc = subprocess.Popen(' '.join(command), 
-                                            stdout = subprocess.PIPE, 
-                                            stderr = subprocess.STDOUT,  #was PIPE
-                                            shell = True,
-                                            universal_newlines = True,
-                                            startupinfo = startupinfo,
-                                            creationflags = creationflags)
-                
-                    stdout, stderr = proc.communicate()
-                    stdout = stdout.decode('utf-8')
-                    #stderr = stderr.decode('utf-8')
+                #result = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn = self.preexec).communicate()[0]
 
-                except OSError, e:
-                    raise Exception('Error: %s' % e)
-                #end Try
+                # startupinfo = None
+                # creationflags= None
+                # show = False
+                # if os.name == 'nt':
+                #     startupinfo = subprocess.STARTUPINFO()
+                #     startupinfo.dwFlags = subprocess.STARTF_USESHOWWINDOW
+                #     startupinfo.wShowWindow = 1 if show else subprocess.SW_HIDE
+                #     creationflags = subprocess.CREATE_NEW_CONSOLE if show else 0
+                
+                # try:
+                #     proc = subprocess.Popen(' '.join(command), 
+                #                             stdout = subprocess.PIPE, 
+                #                             stderr = subprocess.PIPE,  #was PIPE
+                #                             shell = False,
+                #                             universal_newlines = True,
+                #                             startupinfo = startupinfo,
+                #                             creationflags = creationflags).communicate()[0]
+                
+                #     #stdout, stderr = proc.communicate()
+                #     stdout = proc.decode('utf-8')  #stdout.decode('utf-8')
+                #     stderr = proc.decode('utf-8') #stderr.decode('utf-8')
 
-                if stderr:
-                    raise Exception('Error: %s' % stderr)
-                else:
-                    result = stdout
-                #end If sterr
-                  
+                # except OSError, e:
+                #     raise Exception('Error: %s' % e)
+                # #end Try
+
+                # if stderr:
+                #     raise Exception('Error: %s' % stderr)
+                # else:
+                #     result = stdout
+                # #end If sterr
+               
+                conv = Converter(FFMPEG_CLI, FFPROBE_CLI).convert(actionable_file_path, outputfile, command, timeout=None)
+
+                for timecode in conv:
+                    sys.stdout.write('[{0}] {1}%\r'.format('#' * (timecode / 10) + ' ' * (10 - (timecode / 10)), timecode))
+                    sys.stdout.flush()
+                #logging.DEBUG("%s created" % outputfile)
+                result = 'Done'
+
+        
             else:
                 result = "Error: Unable to find file."
             #end if isfile
@@ -180,7 +194,7 @@ class VideoItemProcessor:
             return False
         else:
             #success
-            logging.warning("'%s': '%s'" % (action_description, actionable_file_path))
+            logging.warning("'%s': '%s' to '%s'" % (action_description, actionable_file_path, outputfile))
             return True
         #end if "Error"
     #end def execute_command
@@ -321,6 +335,14 @@ class VideoItemProcessor:
         #end success
     #end optimize
 
+    def probe(self, fname):
+        """
+        Examine the media file. See the documentation of
+        converter.FFMpeg.probe() for details.
+        """
+        return self.ffmpeg.probe(fname)
+    #end probe
+
     def convert(self, part_item):
         cwd = os.getcwd()
         filepath = part_item.modified_file_path()
@@ -334,19 +356,19 @@ class VideoItemProcessor:
         
         #Create the command line command
         # ffmpeg -i input_file -c:v libx264 -pix_fmt yuv420p -preset veryslow -crf 18 -c:a aac -movflags +faststart output_file
-        convert_cmd = ['%s' % cwd + FFMPEG_CLI]
-        convert_cmd.append('-hide_banner -loglevel info')
-        convert_cmd.append('-i "' + filepath + '"')
+        convert_cmd = [] #['%s' % cwd + FFMPEG_CLI]
+        #convert_cmd.append('-hide_banner -loglevel info')
+        #convert_cmd.append('-i "' + filepath + '"')
         #convert_cmd.append('-threads auto')
-        convert_cmd.append('-c:v libx264')
-        convert_cmd.append('-pix_fmt yuv420p')
-        convert_cmd.append('-preset slow')
-        convert_cmd.append('-crf 23')
-        convert_cmd.append('-c:a aac')
-        convert_cmd.append('-movflags +faststart')
-        convert_cmd.append('-y "' + outputfile + '"')
+        convert_cmd.append(' -c:v libx264')
+        convert_cmd.append(' -pix_fmt yuv420p')
+        convert_cmd.append(' -preset fast')
+        convert_cmd.append(' -crf 18')
+        convert_cmd.append(' -c:a aac')
+        convert_cmd.append(' -movflags +faststart')
+        #convert_cmd.append('-y "' + outputfile + '"')
 
-        success = self.execute_command(filepath, convert_cmd, action_description)
+        success = self.execute_command(filepath, convert_cmd, action_description, outputfile)
 
         if success:
             Summary().metadata_convert_succeeded()
