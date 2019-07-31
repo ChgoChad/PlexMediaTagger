@@ -99,8 +99,8 @@ class SectionProcessor:
             logging.info( "List of items in %s" % container_title )
             filtered_list_of_items = list_of_items
         else:
-            input = input.lower()
-            logging.info( "List of items in %s matching '%s'" % (container_title, input) )
+            input = input.lower().rsplit('\r', 1)[0]
+            logging.info( "List of items in %s matching '%s' " % (container_title, input) )
             filtered_list_of_items = [item for item in list_of_items if input in item.title.lower()]
         #end if input == 'ALL'
         
