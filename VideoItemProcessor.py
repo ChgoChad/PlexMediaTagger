@@ -197,7 +197,7 @@ class VideoItemProcessor:
         # "{Gapless:}",  "{Content Rating:}",  "{Disk #:}", "{TV Episode #:}", "{TV Season:}", "{Rating:}", "{Rating Annotation:}", 
         # "{Studio:}",  "{Cast:}",  "{Director:}", "{Codirector:}",  "{Producers:}",  "{Screenwriters:}",  "{Encoding Tool:}", 
         #  "{Encoded By:}","{contentID:}"
-        logging.warning("removing tags...")
+        logging.warning("Removing tags...")
         
         #Create the command line command
         tag_removal_cmd = ['%s' % cwd + FFMPEG_CLI]
@@ -547,7 +547,10 @@ class VideoItemProcessor:
                 
                 if self.opts.open_file_location and not no_action:
                     logging.warning("Opening '%s'..." % part_item.modified_file_path())
-                    command = ['open', "-R", part_item.modified_file_path()]
+                    if os.name == 'nt':
+                        command = ['explorer.exe', part_item.modified_file_path()]
+                    else:
+                        command = ['open', "-R", part_item.modified_file_path()]
                     subprocess.call(command)
                 #end if self.opts.open_file_location
 

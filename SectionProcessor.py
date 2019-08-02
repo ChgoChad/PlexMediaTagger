@@ -93,7 +93,7 @@ class SectionProcessor:
         #end if not self.opts.interactive
 
         logging.info( "Type part of the item(s) name or leave empty for full list %s's content" % container_title )
-        input = raw_input("Item name $")
+        input = raw_input("Item name $ ")
         
         if input == '' or input == '\r':
             logging.info( "List of items in %s" % container_title )
@@ -111,18 +111,22 @@ class SectionProcessor:
             logging.error( "No items found" )
             return []
         else:    
-            logging.warning( "empty input equals all" )
+            logging.warning( "[Empty input equals all items]" )
             
-            #ask user what videos should be processed
-            selection = raw_input(indent_text("Item # to select $"))
-            if selection != '':
-                try:
-                    selection = int(selection)
-                except ValueError, e:
-                    logging.debug(e)
-                    logging.critical("'%s' is not a valid item ID" % input)
-                    sys.exit(1)
-                #end try
+            not_valid = True
+            while not_valid:
+                #ask user what videos should be processed
+                selection = raw_input(indent_text("Item # to select $ "))
+                if selection != '':
+                    try:
+                        selection = int(selection)
+                        not_valid = False
+                    except ValueError, e:
+                        logging.debug(e)
+                        logging.critical("'%s' is not a valid item ID" % selection)
+                        #sys.exit(1)
+                        not_valid = True
+                    #end try
             #end if video_choice
         #end if len(list_of_videos)
     
@@ -143,10 +147,10 @@ class SectionProcessor:
         contents_type = movies_media_container_element.get('viewGroup', "")
         for index, partial_movie_item in enumerate(selected_movie_items):
             if self.abort:
-                raise RuntimeError('aborting')
+                raise RuntimeError('Aborting')
             partial_movie_media_container = self.request_handler.get_metadata_container_for_key(partial_movie_item.key)
             full_movie_item = MovieItem(self.opts, partial_movie_media_container)
-            logging.warning( generate_right_padded_string("processing %d/%d %ss : %s " % (index+1, len(selected_movie_items), contents_type, full_movie_item.name()), "-") )
+            logging.warning( generate_right_padded_string("Processing %d/%d %ss : %s " % (index+1, len(selected_movie_items), contents_type, full_movie_item.name()), "-") )
             threading.Thread(None, self.process_video(full_movie_item)).start()
             self.event.wait()
         #end enumerate(selected_movies)
@@ -161,7 +165,7 @@ class SectionProcessor:
         
         contents_type = shows_media_container_element.get('viewGroup', "")
         for index, show_item in enumerate(selected_show_items):
-            logging.warning( "processing %d/%d %ss : %s" % (index+1, len(selected_show_items), contents_type, show_item.name()) )
+            logging.warning( "Processing %d/%d %ss : %s" % (index+1, len(selected_show_items), contents_type, show_item.name()) )
             self.process_season_section_element(show_item)
         #end enumerate(selected_show_items)
     #end process_show_section
@@ -175,7 +179,7 @@ class SectionProcessor:
         
         contents_type = seasons_media_container_element.get('viewGroup', "")
         for index, season_item in enumerate(selected_season_items):
-            logging.warning( "processing %d/%d %ss : %s" % (index+1, len(selected_season_items), contents_type, season_item.name()) )
+            logging.warning( "Processing %d/%d %ss : %s" % (index+1, len(selected_season_items), contents_type, season_item.name()) )
             self.process_episode_section_element(season_item)
         #end enumerate(selected_seasons)
     #end process_season_section
@@ -190,10 +194,10 @@ class SectionProcessor:
         contents_type = episodes_media_container_element.get('viewGroup', "")
         for index, partial_episode_item in enumerate(selected_episode_items):
             if self.abort:
-                raise RuntimeError('aborting')
+                raise RuntimeError('Aborting')
             partial_episode_media_container = self.request_handler.get_metadata_container_for_key(partial_episode_item.key)
             full_episode_item = EpisodeItem(self.opts, partial_episode_media_container, season)
-            logging.warning( generate_right_padded_string("processing %d/%d %ss : %s " % (index+1, len(selected_episode_items), contents_type, full_episode_item.name()), "-") )
+            logging.warning( generate_right_padded_string("Processing %d/%d %ss : %s " % (index+1, len(selected_episode_items), contents_type, full_episode_item.name()), "-") )
             threading.Thread(None, self.process_video(full_episode_item)).start()
             self.event.wait()
         #end enumerate(selected_episodes)

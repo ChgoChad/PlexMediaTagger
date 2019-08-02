@@ -97,7 +97,7 @@ Filepaths to media items in PMS need to be the same as on machine that is runnin
     parser.add_option(  "-m", action="append", type="string", dest="path_modifications", nargs=2, metavar="<find> <replace>",
                         help="perform a find & replace operation on the pms' media file paths (useful if you are running the script on a different machine than the one who is hosting the pms, i.e. the mount paths are different). Supply multiple times to perform several different replacements (operations are performed in order supplied).")
     parser.add_option(  "--open", action="store_true", dest="open_file_location",
-                        help="open a Finder window at the containing folder of the file just processed (Mac OS X only)")
+                        help="open a Finder or Explorer window at the containing folder of the file just processed")
 
     parser.add_option(  "--add-to-itunes", action="store_true", dest="add_to_itunes",
                         help="adds the item to iTunes if not already present - NOT IMPLEMENTED IN WINDOWS PORT")
@@ -220,16 +220,16 @@ Filepaths to media items in PMS need to be the same as on machine that is runnin
         if len(section_elements) == 0:
             logging.error( "No sections found" )
         else:    
-            logging.warning( "Empty input will process ALL Sextions" )
+            logging.warning( "[Empty input will process ALL Sections]" )
     
             #ask user what sections should be processed
-            section_element_choice = raw_input("Section to process $")
+            section_element_choice = raw_input("Section to process $ ")
             if section_element_choice != '' or section_element_choice != '\r':
                 try:
                     section_element_choice = int(section_element_choice)
                 except ValueError, e:
                     logging.debug(e)
-                    logging.critical("'%s' is not a valid section number" % input )
+                    logging.critical("'%s' is not a valid section number." % input )
                     sys.exit(1)
                 #end try
             #end if section_element_choice
