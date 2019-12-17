@@ -95,13 +95,13 @@ class VideoItemProcessor:
     def getFileCommentTagContents(self, part_item):
         """docstring for getFileCommentTagContents"""
         # use latest subler as it can read metadata
-        cwd = os.getcwd()
+        #cwd = os.getcwd()
 
-        if not os.path.exists(cwd + FFPROBE_CLI):
-            raise OSError('File Not Found: %s' % cwd + FFPROBE_CLI)
+        if not os.path.exists(FFPROBE_CLI):
+            raise OSError('File Not Found: %s' % FFPROBE_CLI)
 
         #Create the command line string
-        get_tags_cmd = ['%s' % cwd + FFPROBE_CLI]
+        get_tags_cmd = ['%s' % FFPROBE_CLI]
         get_tags_cmd.append('-hide_banner -loglevel quiet')
         get_tags_cmd.append('-i')
         get_tags_cmd.append('%s' % part_item.modified_file_path())

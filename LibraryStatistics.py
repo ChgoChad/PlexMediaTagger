@@ -37,14 +37,14 @@ class LibraryStatistics:
         results.append("Number of items: \t\t%d" % ( total_number_of_items ))
         
         results.append(seperator)
-        results.append("Number of Movies: \t\t%d" % ( self.number_of_movies ))
-        results.append("Number of TV Episodes: \t\t%d" % ( self.number_of_episodes ))
+        results.append("Number of Movies: \t%d" % ( self.number_of_movies ))
+        results.append("Number of TV Episodes: \t%d" % ( self.number_of_episodes ))
         
         results.append(seperator)
         total_duration = self.total_duration_episodes + self.total_duration_movies
         results.append("Total Duration: \t\t%s" % ( self.time_formatted_string(total_duration) ))
         average = self.average(total_duration, total_number_of_items)
-        results.append("Average Duration: \t\t%s" % ( self.time_formatted_string(average) ))
+        results.append("Average Duration: \t%s" % ( self.time_formatted_string(average) ))
         
         results.append(seperator)
         results.append("Total TV Episodes Duration: \t%s" % ( self.time_formatted_string(self.total_duration_episodes) ))
@@ -52,7 +52,7 @@ class LibraryStatistics:
         results.append("Average TV Episode Duration: \t%s" % ( self.time_formatted_string(average) ))
         
         results.append(seperator)
-        results.append("Total Movies Duration: \t\t%s" % ( self.time_formatted_string(self.total_duration_movies) ))
+        results.append("Total Movies Duration: \t%s" % ( self.time_formatted_string(self.total_duration_movies) ))
         average = self.average(self.total_duration_movies, self.number_of_movies)
         results.append("Average Movie Duration: \t%s" % ( self.time_formatted_string(average) ))
         
