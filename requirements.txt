@@ -13,6 +13,6 @@ rope==0.14.0
 sh==1.12.14
 singledispatch==3.4.0.3
 subprocess32==3.5.3
-tqdm==4.32.2
+tqdm==4.66.3
 urllib3==1.26.19
 yarg==0.1.9
